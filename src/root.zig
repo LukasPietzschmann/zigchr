@@ -1,18 +1,38 @@
 const std = @import("std");
 const utils = @import("utils.zig");
 
+const ID = u32;
+fn Head(comptime C: type) type {
+    return [](fn (C) bool);
+}
+fn Guard(comptime C: type) type {
+    return fn ([]C) bool;
+}
+fn Body(comptime C: type) type {
+    return fn ([]C) [][]C;
+}
+const String = []const u8;
+
+fn IdConstraintPair(comptime C: type) type {
+    return struct {
+        id: ID,
+        constraint: C,
+    };
+}
+
 fn CHRState(comptime C: type) type {
     return struct {
-        next_id: u32 = 0,
-        store: std.AutoHashMap(u32, C) = .{},
-        alive: utils.Set(u32) = .{},
-        history: []std.meta.Tuple(.{ []u8, []u32 }) = .{},
+        next_id: ID = 0,
+        store: std.AutoHashMap(ID, C) = .{},
+        alive: utils.Set(ID) = .{},
+        history: []IdConstraintPair(C) = .{},
+        query: utils.Queue(IdConstraintPair(C)) = .{},
 
-        pub fn is_alive(self: *CHRState(C), id: u32) bool {
+        pub fn is_alive(self: *CHRState(C), id: ID) bool {
             self.alive.has(id);
         }
 
-        pub fn kill(self: *CHRState(C), id: u32) void {
+        pub fn kill(self: *CHRState(C), id: ID) void {
             self.store.remove(id);
             self.alive.remove(id);
         }
@@ -43,7 +63,7 @@ fn CHRState(comptime C: type) type {
 
 fn Active(comptime C: type) type {
     return struct {
-        id: u32,
+        id: ID,
         constraint: C,
     };
 }
