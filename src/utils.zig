@@ -1,15 +1,29 @@
 const std = @import("std");
 
-fn Set(comptime T: type) type {
+pub fn Set(comptime T: type) type {
     return struct {
-        backing: std.AutoHashMap(T, void) = .{},
+        backing: std.AutoHashMap(T, void),
 
-        pub fn has(self: *Set(T), elem: T) bool {
+        pub fn init(allocator: std.mem.Allocator) Set(T) {
+            return .{
+                .backing = std.AutoHashMap(T, void).init(allocator),
+            };
+        }
+
+        pub fn deinit(self: *Set(T)) void {
+            self.backing.deinit();
+            self.* = undefined;
+        }
+
+        pub fn has(self: Set(T), elem: T) bool {
             return self.backing.contains(elem);
         }
 
         pub fn insert(self: *Set(T), elem: T) bool {
-            return self.backing.put(elem, void{});
+            self.backing.put(elem, void{}) catch {
+                return false;
+            };
+            return true;
         }
 
         pub fn remove(self: *Set(T), elem: T) bool {
@@ -18,25 +32,50 @@ fn Set(comptime T: type) type {
     };
 }
 
-fn Queue(comptime T: type) type {
+pub fn Queue(comptime T: type) type {
     return struct {
-        backing: []T = undefined,
+        backing: std.ArrayList(T),
 
-        pub fn empty(self: *Queue(T)) bool {
-            return self.backing.len == 0;
+        pub fn init(allocator: std.mem.Allocator) Queue(T) {
+            return .{
+                .backing = std.ArrayList(T).init(allocator),
+            };
         }
 
-        pub fn push(self: *Queue(T), elem: T) void {
-            self.backing = std.array.append(self.backing, elem);
+        pub fn deinit(self: *Queue(T)) void {
+            self.backing.deinit();
+            self.* = undefined;
+        }
+
+        pub fn empty(self: Queue(T)) bool {
+            return self.backing.items.len == 0;
+        }
+
+        pub fn push(self: *Queue(T), elem: T) bool {
+            self.backing.append(elem) catch {
+                return false;
+            };
+            return true;
         }
 
         pub fn pop(self: *Queue(T)) ?T {
             if (self.empty()) {
                 return null;
             }
-            const elem = self.backing[0];
-            self.backing = self.backing[1..];
-            return elem;
+            return self.backing.pop();
         }
     };
+}
+
+pub fn concatSlices(comptime T: type, slice1: []const T, slice2: []const T) []T {
+    const total_len = slice1.len + slice2.len;
+    var allocator = std.heap.page_allocator;
+
+    const result = allocator.alloc(T, total_len) catch unreachable;
+
+    // TODO
+    // std.mem.copy(T, result[0..slice1.len], slice1);
+    // std.mem.copy(T, result[slice1.len..], slice2);
+
+    return result;
 }
