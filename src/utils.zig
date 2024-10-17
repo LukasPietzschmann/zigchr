@@ -19,19 +19,16 @@ pub fn Set(comptime T: type) type {
             return self.backing.contains(elem);
         }
 
-        pub fn insert(self: *Set(T), elem: T) bool {
-            self.backing.put(elem, void{}) catch {
-                return false;
-            };
-            return true;
+        pub fn insert(self: *Set(T), elem: T) !void {
+            try self.backing.put(elem, void{});
         }
 
         pub fn remove(self: *Set(T), elem: T) bool {
             return self.backing.remove(elem);
         }
 
-        pub fn clearRetainingCapacity(self: *Set(T)) void {
-            self.backing.clearRetainingCapacity();
+        pub fn clearAndFree(self: *Set(T)) void {
+            self.backing.clearAndFree();
         }
     };
 }
@@ -55,11 +52,8 @@ pub fn Queue(comptime T: type) type {
             return self.backing.items.len == 0;
         }
 
-        pub fn push(self: *Queue(T), elem: T) bool {
-            self.backing.append(elem) catch {
-                return false;
-            };
-            return true;
+        pub fn push(self: *Queue(T), elem: T) !void {
+            try self.backing.append(elem);
         }
 
         pub fn pop(self: *Queue(T)) ?T {

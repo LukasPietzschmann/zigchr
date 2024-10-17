@@ -14,22 +14,23 @@ fn top(_: []u32) []u32 {
 }
 
 pub fn main() !void {
-    std.debug.print("All your {s} are belongs to us.\n", .{"codebase"});
-
     // min(X) \ min(Y) <=> X <= Y | true
 
-    const kh = lib.toHead(truefn);
-    const rh = lib.toHead(truefn);
+    const kh = try lib.toHead(truefn);
+    const rh = try lib.toHead(truefn);
     defer {
         kh.deinit();
         rh.deinit();
+        lib.deinit();
     }
 
-    var solverGen: lib.RuleSolver = .{ .name = "test", .kh = kh, .rh = rh, .g = smaller, .b = top };
+    var solverGen: lib.RuleSolver = .{ .name = "min", .kh = kh, .rh = rh, .g = smaller, .b = top };
     const solver = solverGen.init();
-    var elements = [_]u32{ 100, 8, 2, 3, 4 };
-    const state = lib.runSolver(solver, &elements, null);
+    var elements = [_]u32{ 4, 45 };
+    var state = try lib.runSolver(solver, &elements);
+    defer state.deinit();
     var it = state.store.valueIterator();
+    std.log.info("Remaining constraints in the store:", .{});
     while (it.next()) |constraint| {
         std.log.info("{d}", .{constraint.*});
     }
