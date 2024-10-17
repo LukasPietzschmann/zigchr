@@ -9,6 +9,10 @@ pub const Guard = *const fn ([]u32) bool;
 pub const Body = *const fn ([]u32) []u32;
 pub const String = []const u8;
 
+// TODO: Make non thread safe
+var gpa = std.heap.GeneralPurposeAllocator(.{ .safety = true, .thread_safe = true, .verbose_log = true }){};
+const allocator = gpa.allocator();
+
 pub const Active = struct {
     id: ID,
     constraint: u32,
@@ -16,10 +20,10 @@ pub const Active = struct {
 
 pub const CHRState = struct {
     next_id: ID = 0,
-    store: std.AutoHashMap(ID, u32) = std.AutoHashMap(ID, u32).init(std.heap.page_allocator),
-    alive: utils.Set(ID) = utils.Set(ID).init(std.heap.page_allocator),
-    history: std.StringHashMap(List(ID)) = std.StringHashMap(List(ID)).init(std.heap.page_allocator),
-    query: utils.Queue(Active) = utils.Queue(Active).init(std.heap.page_allocator),
+    store: std.AutoHashMap(ID, u32) = std.AutoHashMap(ID, u32).init(allocator),
+    alive: utils.Set(ID) = utils.Set(ID).init(allocator),
+    history: std.StringHashMap(List(ID)) = std.StringHashMap(List(ID)).init(allocator),
+    query: utils.Queue(Active) = utils.Queue(Active).init(allocator),
 
     pub fn is_alive(self: CHRState, id: ID) bool {
         return self.alive.has(id);
@@ -52,7 +56,7 @@ pub const CHRState = struct {
             // }
             self.history.put(rule, existing) catch unreachable;
         } else {
-            var id = List(ID).init(std.heap.page_allocator);
+            var id = List(ID).init(allocator);
             for (ids) |d| {
                 id.append(d) catch unreachable;
             }
@@ -89,14 +93,14 @@ fn findMatchings(head: Head, active: Active, state: *CHRState) List([]Active) {
         head: Head,
         active: Active,
         state: *CHRState,
-        acc: List(Active) = List(Active).init(std.heap.page_allocator),
+        acc: List(Active) = List(Active).init(allocator),
 
-        var matchings: List([]Active) = List([]Active).init(std.heap.page_allocator);
+        var matchings: List([]Active) = List([]Active).init(allocator);
 
         pub fn matching(self: *Self) List([]Active) {
             for (self.head, 0..) |head_constraint, i| {
                 if (head_constraint(self.active.constraint)) {
-                    var used = utils.Set(ID).init(std.heap.page_allocator);
+                    var used = utils.Set(ID).init(allocator);
                     _ = used.insert(self.active.id);
                     self.search(i, 0, &used);
                 }
@@ -178,11 +182,11 @@ pub const RuleSolver = struct {
     b: Body,
 
     pub fn solve(self: *Self, state: *CHRState, active: Active) bool {
-        var matches: List([]Active) = List([]Active).init(std.heap.page_allocator);
+        var matches: List([]Active) = List([]Active).init(allocator);
         const x = utils.concatSlices(SHead, self.kh, self.rh);
         for (findMatchings(x, active, state).items) |match| {
-            var matchIds = List(ID).init(std.heap.page_allocator);
-            var matchValues = List(u32).init(std.heap.page_allocator);
+            var matchIds = List(ID).init(allocator);
+            var matchValues = List(u32).init(allocator);
             for (match) |m| {
                 matchIds.append(m.id) catch unreachable;
                 matchValues.append(m.constraint) catch unreachable;
@@ -201,8 +205,8 @@ pub const RuleSolver = struct {
 
         const match = selectMatch(matches.items);
 
-        var matchIds = List(ID).init(std.heap.page_allocator);
-        var matchValues = List(u32).init(std.heap.page_allocator);
+        var matchIds = List(ID).init(allocator);
+        var matchValues = List(u32).init(allocator);
         for (match) |m| {
             matchIds.append(m.id) catch unreachable;
             matchValues.append(m.constraint) catch unreachable;
