@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("root.zig");
 
+pub const std_options = .{
+    .log_level = .info,
+};
+
 fn truefn(_: u32) bool {
     return true;
 }
