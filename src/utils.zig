@@ -29,6 +29,10 @@ pub fn Set(comptime T: type) type {
         pub fn remove(self: *Set(T), elem: T) bool {
             return self.backing.remove(elem);
         }
+
+        pub fn clearRetainingCapacity(self: *Set(T)) void {
+            self.backing.clearRetainingCapacity();
+        }
     };
 }
 
@@ -65,17 +69,4 @@ pub fn Queue(comptime T: type) type {
             return self.backing.pop();
         }
     };
-}
-
-pub fn concatSlices(comptime T: type, slice1: []const T, slice2: []const T) []T {
-    const total_len = slice1.len + slice2.len;
-    var allocator = std.heap.page_allocator;
-
-    const result = allocator.alloc(T, total_len) catch unreachable;
-
-    // TODO
-    // std.mem.copy(T, result[0..slice1.len], slice1);
-    // std.mem.copy(T, result[slice1.len..], slice2);
-
-    return result;
 }

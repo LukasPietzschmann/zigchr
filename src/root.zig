@@ -1,21 +1,42 @@
 const std = @import("std");
+
 const utils = @import("utils.zig");
 const List = std.ArrayList;
 
 pub const ID = u32;
 pub const SHead = *const fn (u32) bool;
-pub const Head = []SHead;
+pub const Head = List(SHead);
 pub const Guard = *const fn ([]u32) bool;
 pub const Body = *const fn ([]u32) []u32;
 pub const String = []const u8;
 
 // TODO: Make non thread safe
-var gpa = std.heap.GeneralPurposeAllocator(.{ .safety = true, .thread_safe = true, .verbose_log = true }){};
+var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = false, .verbose_log = false }){};
 const allocator = gpa.allocator();
+
+pub fn toHead(f: *const fn (u32) bool) List(SHead) {
+    var list = List(SHead).init(allocator);
+    list.append(f) catch unreachable;
+    return list;
+}
+
+pub fn merge(comptime T: type, l1: List(T), l2: List(T)) List(T) {
+    var list = List(T).init(allocator);
+    list.appendSlice(l1.items) catch unreachable;
+    list.appendSlice(l2.items) catch unreachable;
+    return list;
+}
 
 pub const Active = struct {
     id: ID,
     constraint: u32,
+
+    pub fn format(self: Active, comptime fmt: String, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.print("{d}: {d}", .{ self.id, self.constraint });
+    }
 };
 
 pub const CHRState = struct {
@@ -32,13 +53,7 @@ pub const CHRState = struct {
     pub fn kill(self: *CHRState, id: ID) void {
         _ = self.store.remove(id);
         _ = self.alive.remove(id);
-    }
-
-    pub fn constraints(self: CHRState) []u32 {
-        var cs: []u32 = undefined;
-        for (self.store.keys()) |id|
-            cs = std.array.append(cs, self.store.get(id));
-        return cs;
+        std.debug.print("Store containing {d} constraints\n", .{self.store.count()});
     }
 
     pub fn add_to_query(self: *CHRState, id: ID, constraint: u32) void {
@@ -46,7 +61,9 @@ pub const CHRState = struct {
     }
 
     pub fn add_to_store(self: *CHRState, id: ID, constraint: u32) void {
+        std.debug.print("Adding {d} to store\n", .{constraint});
         self.store.put(id, constraint) catch unreachable;
+        std.debug.print("Store containing {d} constraints\n", .{self.store.count()});
     }
 
     pub fn add_to_history(self: *CHRState, rule: String, ids: []ID) void {
@@ -86,46 +103,60 @@ pub const CHRState = struct {
     }
 };
 
-fn findMatchings(head: Head, active: Active, state: *CHRState) List([]Active) {
+fn findMatchings(head: Head, active: Active, state: *CHRState) [][]Active {
     const s = struct {
         const Self = @This();
 
         head: Head,
         active: Active,
         state: *CHRState,
+
+        headIdx: usize = undefined,
         acc: List(Active) = List(Active).init(allocator),
+        used: utils.Set(ID) = utils.Set(ID).init(allocator),
 
         var matchings: List([]Active) = List([]Active).init(allocator);
 
-        pub fn matching(self: *Self) List([]Active) {
-            for (self.head, 0..) |head_constraint, i| {
+        pub fn matching(self: *Self) [][]Active {
+            for (self.head.items, 0..) |head_constraint, i| {
                 if (head_constraint(self.active.constraint)) {
-                    var used = utils.Set(ID).init(allocator);
-                    _ = used.insert(self.active.id);
-                    self.search(i, 0, &used);
+                    // self.acc.clearAndFree(); // unnecessary but it does not hurt either
+                    self.used.clearRetainingCapacity();
+                    self.headIdx = i;
+
+                    _ = self.used.insert(self.active.id);
+                    self.search(0);
                 }
             }
-            return matchings;
+            return matchings.toOwnedSlice() catch unreachable;
         }
 
         // Search the constraint store for a fitting match for the i-th head constraint
-        fn search(self: *Self, headIdx: usize, i: usize, used: *utils.Set(ID)) void {
-            if (i >= self.head.len) { // All head constraints have been matched
-                matchings.append(self.acc.items) catch unreachable;
+        fn search(self: *Self, i: usize) void {
+            if (i >= self.head.items.len) { // All head constraints have been matched
+                // std.debug.print("Adding {p}\n", .{self.acc.items});
+                matchings.append(self.acc.toOwnedSlice() catch unreachable) catch unreachable;
                 return;
             }
 
-            if (i == headIdx) { // The active constraint matched the constraint at head_idx
+            if (i == self.headIdx) { // The active constraint matched the constraint at head_idx
                 self.acc.append(self.active) catch unreachable;
-                self.search(headIdx, i + 1, used);
+                _ = self.used.insert(self.active.id);
+                self.search(i + 1);
             } else {
                 var it = self.state.store.keyIterator();
                 while (it.next()) |id| { // Search the store for a fitting constraint
-                    const storeConstraint = self.state.store.get(id.*) orelse continue;
-                    if (self.head[i](storeConstraint)) {
-                        _ = used.insert(id.*);
-                        self.acc.append(Active{ .id = id.*, .constraint = storeConstraint }) catch unreachable;
-                        self.search(headIdx, i + 1, used);
+                    const storeConstraint = self.state.store.get(id.*) orelse unreachable;
+                    if (self.used.has(id.*)) {
+                        std.debug.print("{d} already used\n", .{storeConstraint});
+                        continue;
+                    }
+                    if (self.head.items[i](storeConstraint)) {
+                        std.debug.print("Adding {d} from store\n", .{storeConstraint});
+                        const new = Active{ .id = id.*, .constraint = storeConstraint };
+                        self.acc.append(new) catch unreachable;
+                        _ = self.used.insert(new.id);
+                        self.search(i + 1);
                     }
                 }
             }
@@ -182,9 +213,13 @@ pub const RuleSolver = struct {
     b: Body,
 
     pub fn solve(self: *Self, state: *CHRState, active: Active) bool {
+        std.debug.print("Start solving for {d}\n", .{active.constraint});
         var matches: List([]Active) = List([]Active).init(allocator);
-        const x = utils.concatSlices(SHead, self.kh, self.rh);
-        for (findMatchings(x, active, state).items) |match| {
+        const complete_head = merge(SHead, self.kh, self.rh);
+        const matchings = findMatchings(complete_head, active, state);
+        std.debug.print("Found {d} matchings\n", .{matchings.len});
+        for (matchings) |match| {
+            // std.debug.print("{any}\n", .{match});
             var matchIds = List(ID).init(allocator);
             var matchValues = List(u32).init(allocator);
             for (match) |m| {
@@ -192,18 +227,20 @@ pub const RuleSolver = struct {
                 matchValues.append(m.constraint) catch unreachable;
             }
 
-            if (!self.g(matchValues.items) or (self.rh.len == 0 and state.is_in_history(self.name, matchIds.items))) {
+            if (!self.g(matchValues.items) or (self.rh.items.len == 0 and state.is_in_history(self.name, matchIds.items))) {
                 continue;
             }
 
             matches.append(match) catch unreachable;
         }
+        complete_head.deinit();
 
         if (matches.items.len == 0) {
             return false;
         }
 
         const match = selectMatch(matches.items);
+        std.debug.print("Match: {any}\n", .{match});
 
         var matchIds = List(ID).init(allocator);
         var matchValues = List(u32).init(allocator);
@@ -212,15 +249,16 @@ pub const RuleSolver = struct {
             matchValues.append(m.constraint) catch unreachable;
         }
 
-        for (matchIds.items[self.kh.len..]) |rhMatchId| {
-            state.kill(rhMatchId);
+        for (match[self.kh.items.len..]) |rhMatch| {
+            std.debug.print("Killing {d}\n", .{rhMatch.constraint});
+            state.kill(rhMatch.id);
         }
 
         for (self.b(matchValues.items)) |resultingConstraint| {
             state.add_to_query(state.new_id(), resultingConstraint);
         }
 
-        if (self.rh.len == 0) {
+        if (self.rh.items.len == 0) {
             state.add_to_history(self.name, matchIds.items);
         }
 
@@ -253,9 +291,11 @@ pub const CompositeSolver = struct {
 };
 
 pub fn runSolver(solver: Solvable, constraints: []u32, startState: ?CHRState) CHRState {
+    std.debug.print("Running solver\n", .{});
     var state = startState orelse CHRState{};
 
     for (constraints) |constraint| {
+        std.debug.print("Adding {d} to query\n", .{constraint});
         state.add_to_query(state.new_id(), constraint);
     }
 
@@ -265,6 +305,7 @@ pub fn runSolver(solver: Solvable, constraints: []u32, startState: ?CHRState) CH
             continue;
         }
         if (state.is_alive(current.id)) {
+            std.debug.print("Solver could not go ahead for constraint {d}\n", .{current.constraint});
             state.add_to_store(current.id, current.constraint);
         }
     }
