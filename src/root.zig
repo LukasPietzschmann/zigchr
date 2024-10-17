@@ -38,7 +38,7 @@ pub const Active = struct {
         _ = fmt;
         _ = options;
 
-        try writer.print("{d}: {d}", .{ self.id, self.constraint });
+        try writer.print("{d}", .{self.constraint});
     }
 };
 
@@ -61,9 +61,10 @@ pub const CHRState = struct {
     }
 
     pub fn kill(self: *CHRState, id: ID) void {
+        const existing = self.store.get(id) orelse return;
+        std.log.debug("Removing {d} from store", .{existing});
         _ = self.store.remove(id);
         _ = self.alive.remove(id);
-        std.log.debug("Store containing {d} constraints", .{self.store.count()});
     }
 
     pub fn add_to_query(self: *CHRState, id: ID, constraint: u32) !void {
@@ -73,7 +74,6 @@ pub const CHRState = struct {
     pub fn add_to_store(self: *CHRState, id: ID, constraint: u32) !void {
         std.log.debug("Adding {d} to store", .{constraint});
         try self.store.put(id, constraint);
-        std.log.debug("Store containing {d} constraints", .{self.store.count()});
     }
 
     pub fn add_to_history(self: *CHRState, rule: String, ids: []ID) !void {
@@ -154,7 +154,6 @@ fn findMatchings(head: Head, active: Active, state: *CHRState) ![][]Active {
         // Search the constraint store for a fitting match for the i-th head constraint
         fn search(self: *Self, i: usize) !void {
             if (i >= self.head.items.len) { // All head constraints have been matched
-                // std.log.debug("Adding {p}", .{self.acc.items});
                 try self.matchings.append(try self.acc.toOwnedSlice());
                 return;
             }
@@ -166,13 +165,10 @@ fn findMatchings(head: Head, active: Active, state: *CHRState) ![][]Active {
             } else {
                 var it = self.state.store.keyIterator();
                 while (it.next()) |id| { // Search the store for a fitting constraint
+                    if (self.used.has(id.*)) continue;
+
                     const storeConstraint = self.state.store.get(id.*) orelse unreachable;
-                    if (self.used.has(id.*)) {
-                        std.log.debug("{d} already used", .{storeConstraint});
-                        continue;
-                    }
                     if (self.head.items[i](storeConstraint)) {
-                        std.log.debug("Adding {d} from store", .{storeConstraint});
                         const new = Active{ .id = id.*, .constraint = storeConstraint };
                         try self.acc.append(new);
                         try self.used.insert(new.id);
@@ -198,14 +194,14 @@ const Solvable = struct {
 
     ptr: *anyopaque,
     solve_fn: *const fn (*anyopaque, state: *CHRState, active: Active) std.mem.Allocator.Error!bool,
+    name: String,
 
-    pub fn init(ptr: anytype) Self {
+    pub fn init(ptr: anytype, name: String) Self {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
-        if (ptr_info != .Pointer or ptr_info.Pointer.size != .One) @compileError("Expected a pointer to a single value");
-
-        // const alignment = ptr_info.Pointer.alignment;
+        if (ptr_info != .Pointer or ptr_info.Pointer.size != .One)
+            @compileError("Expected a pointer to a single value");
 
         const gen = struct {
             pub fn solveImpl(pointer: *anyopaque, state: *CHRState, active: Active) !bool {
@@ -217,6 +213,7 @@ const Solvable = struct {
         return .{
             .ptr = ptr,
             .solve_fn = gen.solveImpl,
+            .name = name,
         };
     }
 
@@ -235,12 +232,11 @@ pub const RuleSolver = struct {
     b: Body,
 
     pub fn solve(self: *Self, state: *CHRState, active: Active) !bool {
-        std.log.debug("Start solving for {d}", .{active.constraint});
+        std.log.debug("Process {d}", .{active.constraint});
         var matches: List([]Active) = List([]Active).init(allocator);
         defer matches.deinit();
         const complete_head = try merge(SHead, self.kh, self.rh);
         const matchings = try findMatchings(complete_head, active, state);
-        std.log.debug("Found {d} matchings", .{matchings.len});
         for (matchings) |match| {
             var matchIds = List(ID).init(allocator);
             var matchValues = List(u32).init(allocator);
@@ -264,11 +260,13 @@ pub const RuleSolver = struct {
         complete_head.deinit();
 
         if (matches.items.len == 0) {
+            std.log.debug("Could not apply rule {s}", .{self.name});
             return false;
         }
 
         const match = selectMatch(matches.items);
-        std.log.debug("Match: {any}", .{match});
+
+        std.log.debug("Fire rule {s} with {any}", .{ self.name, match });
 
         var matchIds = List(ID).init(allocator);
         var matchValues = List(u32).init(allocator);
@@ -283,7 +281,6 @@ pub const RuleSolver = struct {
         }
 
         for (match[self.kh.items.len..]) |rhMatch| {
-            std.log.debug("Killing {d}", .{rhMatch.constraint});
             state.kill(rhMatch.id);
         }
 
@@ -300,7 +297,7 @@ pub const RuleSolver = struct {
     }
 
     pub fn init(self: *Self) Solvable {
-        return Solvable.init(self);
+        return Solvable.init(self, self.name);
     }
 };
 
@@ -311,6 +308,7 @@ pub const CompositeSolver = struct {
 
     pub fn solve(self: *Self, state: *CHRState, active: Active) bool {
         for (self.solvers) |solver| {
+            std.log.debug("Trying rule {s}", .{solver.name});
             if (solver.solve(state, active)) {
                 return true;
             }
@@ -320,12 +318,11 @@ pub const CompositeSolver = struct {
 
     pub fn init(self: *Self, solvers: []Solvable) Solvable {
         solvers = solvers;
-        return Solvable.init(self);
+        return Solvable.init(self, "Composite");
     }
 };
 
 pub fn runSolver(solver: Solvable, constraints: []u32) !CHRState {
-    std.log.debug("Running solver", .{});
     var state = CHRState{};
 
     for (constraints) |constraint| {
@@ -340,7 +337,6 @@ pub fn runSolver(solver: Solvable, constraints: []u32) !CHRState {
             continue;
         }
         if (state.is_alive(current.id)) {
-            std.log.debug("Solver could not go ahead for constraint {d}", .{current.constraint});
             try state.add_to_store(current.id, current.constraint);
         }
     }
