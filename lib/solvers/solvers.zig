@@ -55,8 +55,8 @@ pub const Solvable = struct {
         };
     }
 
-    pub inline fn deinit(self: *Self) void {
-        self.deinit_fn(self);
+    pub inline fn deinit(self: Self) void {
+        self.deinit_fn(self.ptr);
     }
 
     pub inline fn solve(self: Self, state: *CHRState, active: Active) !bool {

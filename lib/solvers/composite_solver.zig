@@ -30,7 +30,7 @@ pub const CompositeSolver = struct {
 
     pub fn deinit(self: *Self) void {
         for (self.solvers.items) |solver| {
-            @constCast(&solver).deinit();
+            solver.deinit();
         }
         self.solvers.deinit();
     }
