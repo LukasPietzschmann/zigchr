@@ -1,4 +1,5 @@
 const std = @import("std");
+const config = @import("config");
 const utils = @import("utils");
 
 const log = @import("log.zig");
@@ -25,6 +26,15 @@ pub const CHRState = struct {
         self.query.deinit();
     }
 
+    fn print_store(self: CHRState) void {
+        log.debug("========== Store ==========", .{});
+        var it = self.store.valueIterator();
+        while (it.next()) |constraint| {
+            log.debug("{d}", .{constraint.*});
+        }
+        log.debug("===========================", .{});
+    }
+
     pub fn is_alive(self: CHRState, id: ID) bool {
         return self.alive.has(id);
     }
@@ -33,6 +43,8 @@ pub const CHRState = struct {
         if (self.store.get(id)) |existing| {
             log.debug("Removing {d} from store", .{existing});
             _ = self.store.remove(id);
+            if (config.show_store)
+                self.print_store();
         } else if (self.alive.has(id)) {
             log.debug("Removing active constraint from query", .{});
             _ = self.alive.remove(id);
@@ -49,6 +61,8 @@ pub const CHRState = struct {
     pub fn add_to_store(self: *CHRState, id: ID, constraint: Constraint) !void {
         log.debug("Adding {d} to store", .{constraint});
         try self.store.put(id, constraint);
+        if (config.show_store)
+            self.print_store();
     }
 
     pub fn add_to_history(self: *CHRState, rule: String, ids: utils.Set(ID)) !void {
