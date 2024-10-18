@@ -29,11 +29,18 @@ pub const RuleSolver = struct {
 
     pub fn solve(self: *Self, state: *CHRState, active: Active) !bool {
         std.log.debug("Process {d}", .{active.constraint});
-        var matches: List([]Active) = List([]Active).init(allocator);
-        defer matches.deinit();
         const complete_head = try lib.concat(self.kh, self.rh);
-        const matchings = try findMatchings(complete_head, active, state);
-        for (matchings) |match| {
+        const all_matchings = try findMatchings(complete_head, active, state);
+        var fitting_matchings = List([]Active).init(allocator);
+        defer {
+            fitting_matchings.deinit();
+            complete_head.deinit();
+            for (all_matchings) |match| {
+                allocator.free(match);
+            }
+            allocator.free(all_matchings);
+        }
+        for (all_matchings) |match| {
             var matchIds = utils.Set(ID).init(allocator);
             var matchValues = List(Constraint).init(allocator);
             defer {
@@ -50,17 +57,15 @@ pub const RuleSolver = struct {
                 continue;
             }
 
-            try matches.append(match);
+            try fitting_matchings.append(match);
         }
-        allocator.free(matchings);
-        complete_head.deinit();
 
-        if (matches.items.len == 0) {
+        if (fitting_matchings.items.len == 0) {
             std.log.debug("Could not apply rule {s}", .{self.name});
             return false;
         }
 
-        const match = selectMatch(matches.items);
+        const match = selectMatch(fitting_matchings.items);
 
         std.log.debug("Fire rule {s} with {any}", .{ self.name, match });
 
@@ -159,8 +164,8 @@ fn findMatchings(head: Head, active: Active, state: *CHRState) ![][]Active {
         pub fn matching(self: *Self) ![][]Active {
             for (self.head.items, 0..) |head_constraint, i| {
                 if (head_constraint(self.active.constraint)) {
-                    self.acc.clearAndFree();
-                    self.used.clearAndFree();
+                    self.acc.clearRetainingCapacity();
+                    self.used.clearRetainingCapacity();
                     self.headIdx = i;
 
                     try self.used.insert(self.active.id);

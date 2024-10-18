@@ -44,8 +44,8 @@ pub fn Set(comptime T: type) type {
             return self.backing.remove(elem);
         }
 
-        pub fn clearAndFree(self: *Set(T)) void {
-            self.backing.clearAndFree();
+        pub fn clearRetainingCapacity(self: *Set(T)) void {
+            self.backing.clearRetainingCapacity();
         }
     };
 }
