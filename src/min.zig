@@ -11,7 +11,7 @@ pub const std_options = .{
 };
 
 fn smaller(cs: []Constraint) bool {
-    return cs[0] < cs[1];
+    return cs[0] <= cs[1];
 }
 
 pub fn main() !void {
