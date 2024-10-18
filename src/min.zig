@@ -19,7 +19,7 @@ pub fn main() !void {
 
     // min(X) \ min(Y) <=> X <= Y | true
 
-    var solver = solvers.simpagation("min", try chr.as_head(predef.head.wildcard), try chr.as_head(predef.head.wildcard), smaller, predef.body.top);
+    var solver = solvers.simpagation("min", try predef.head.Wildcard(), try predef.head.Wildcard(), smaller, predef.body.top);
     defer solver.deinit();
 
     var elements = [_]Constraint{ 4, 45 };

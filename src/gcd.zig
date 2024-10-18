@@ -25,8 +25,8 @@ pub fn main() !void {
     // zero @ gcd(0) <=> true.
     // sub  @ gcd(N) \ gcd(M) <=> N>0, M>0, N=<M | gcd(M-N)
 
-    var solver = try solvers.simplification("zero", try chr.as_head(predef.head.eq(0)), predef.guard.always, predef.body.top);
-    var solver2 = solvers.simpagation("sub", try chr.as_head(predef.head.gt(0)), try chr.as_head(predef.head.gt(0)), smaller, sub);
+    var solver = try solvers.simplification("zero", try predef.head.EQ(0), predef.guard.always, predef.body.top);
+    var solver2 = solvers.simpagation("sub", try predef.head.GT(0), try predef.head.GT(0), smaller, sub);
 
     var compositeGen: solvers.CompositeSolver = .{};
     try compositeGen.own(solver.init());
