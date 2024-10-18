@@ -6,8 +6,10 @@ pub fn build(b: *std.Build) !void {
     defer arena.deinit();
 
     const show_debug_logs = b.option(bool, "log", "Show detailed execution logs") orelse false;
+    const show_matchings = b.option(bool, "matchings", "Show all possible matchings") orelse false;
     const options = b.addOptions();
     options.addOption(bool, "debug_logs", show_debug_logs);
+    options.addOption(bool, "show_matchings", show_matchings);
 
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -24,6 +26,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
     lib_chr.addImport("utils", utils);
+    lib_chr.addOptions("config", options);
 
     const path_to_src = try std.fs.cwd().realpathAlloc(alloc, "src");
     const src_dir = try std.fs.openDirAbsolute(path_to_src, .{
@@ -43,7 +46,6 @@ pub fn build(b: *std.Build) !void {
         });
         exe.root_module.addImport("utils", utils);
         exe.root_module.addImport("libchr", lib_chr);
-        exe.root_module.addOptions("config", options);
 
         b.installArtifact(exe);
 

@@ -1,6 +1,8 @@
 const std = @import("std");
 const utils = @import("utils");
+const config = @import("config");
 
+const log = @import("../log.zig");
 const lib = @import("../lib.zig");
 const types = @import("../types.zig");
 const CHRState = @import("../state.zig").CHRState;
@@ -28,7 +30,7 @@ pub const RuleSolver = struct {
     b: Body,
 
     pub fn solve(self: *Self, state: *CHRState, active: Active) !bool {
-        std.log.debug("Process {d}", .{active.constraint});
+        log.debug("Process {d}", .{active.constraint});
         const complete_head = try lib.concat(self.kh, self.rh);
         const all_matchings = try findMatchings(complete_head, active, state);
         var fitting_matchings = List([]Active).init(allocator);
@@ -40,6 +42,11 @@ pub const RuleSolver = struct {
             }
             allocator.free(all_matchings);
         }
+
+        if (config.show_matchings) {
+            log.debug("Matchings: {any}", .{all_matchings});
+        }
+
         for (all_matchings) |match| {
             var matchIds = utils.Set(ID).init(allocator);
             var matchValues = List(Constraint).init(allocator);
@@ -61,13 +68,13 @@ pub const RuleSolver = struct {
         }
 
         if (fitting_matchings.items.len == 0) {
-            std.log.debug("Could not apply rule {s}", .{self.name});
+            log.debug("Could not apply rule {s}", .{self.name});
             return false;
         }
 
         const match = selectMatch(fitting_matchings.items);
 
-        std.log.debug("Fire rule {s} with {any}", .{ self.name, match });
+        log.debug("Fire rule {s} with {any}", .{ self.name, match });
 
         var matchIds = utils.Set(ID).init(allocator);
         var matchValues = List(Constraint).init(allocator);

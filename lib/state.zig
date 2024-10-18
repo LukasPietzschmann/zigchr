@@ -1,6 +1,7 @@
 const std = @import("std");
 const utils = @import("utils");
 
+const log = @import("log.zig");
 const types = @import("types.zig");
 const allocator = @import("lib.zig").allocator;
 
@@ -30,23 +31,23 @@ pub const CHRState = struct {
 
     pub fn kill(self: *CHRState, id: ID) void {
         if (self.store.get(id)) |existing| {
-            std.log.debug("Removing {d} from store", .{existing});
+            log.debug("Removing {d} from store", .{existing});
             _ = self.store.remove(id);
         } else if (self.alive.has(id)) {
-            std.log.debug("Removing active constraint from query", .{});
+            log.debug("Removing active constraint from query", .{});
             _ = self.alive.remove(id);
         } else {
-            std.log.debug("Could not remove ID {d}", .{id});
+            log.debug("Could not remove ID {d}", .{id});
         }
     }
 
     pub fn add_to_query(self: *CHRState, id: ID, constraint: Constraint) !void {
-        std.log.debug("Adding {d} to query", .{constraint});
+        log.debug("Adding {d} to query", .{constraint});
         try self.query.push(Active{ .id = id, .constraint = constraint });
     }
 
     pub fn add_to_store(self: *CHRState, id: ID, constraint: Constraint) !void {
-        std.log.debug("Adding {d} to store", .{constraint});
+        log.debug("Adding {d} to store", .{constraint});
         try self.store.put(id, constraint);
     }
 

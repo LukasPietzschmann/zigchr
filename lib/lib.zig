@@ -1,5 +1,6 @@
 const std = @import("std");
 
+pub const log = @import("log.zig");
 pub const predefined = @import("predefined/predefined.zig");
 pub const solvers = @import("solvers/solvers.zig");
 pub const types = @import("types.zig");

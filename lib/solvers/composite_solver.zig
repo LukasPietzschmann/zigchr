@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const log = @import("../log.zig");
 const types = @import("../types.zig");
 
 const CHRState = @import("../state.zig").CHRState;
@@ -16,7 +17,7 @@ pub const CompositeSolver = struct {
 
     pub fn solve(self: *Self, state: *CHRState, active: Active) !bool {
         for (self.solvers.items) |solver| {
-            std.log.debug("Trying rule {s}", .{solver.name});
+            log.debug("Trying rule {s}", .{solver.name});
             if (try solver.solve(state, active)) {
                 return true;
             }
