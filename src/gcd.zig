@@ -32,8 +32,10 @@ pub fn main() !void {
     try compositeGen.own(solver.init());
     try compositeGen.own(solver2.init());
 
-    var elements = [_]Constraint{ 94017, 1155, 2035 };
-    var state = try solvers.runSolver(compositeGen.init(), &elements);
+    const query = try chr.argv_to_query();
+    defer chr.allocator.free(query);
+
+    var state = try solvers.runSolver(compositeGen.init(), query);
     defer state.deinit();
     defer compositeGen.deinit();
 

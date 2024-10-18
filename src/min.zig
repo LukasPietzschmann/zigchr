@@ -22,8 +22,10 @@ pub fn main() !void {
     var solver = solvers.simpagation("min", try predef.head.Wildcard(), try predef.head.Wildcard(), smaller, predef.body.top);
     defer solver.deinit();
 
-    var elements = [_]Constraint{ 4, 45 };
-    var state = try solvers.runSolver(solver.init(), &elements);
+    const query = try chr.argv_to_query();
+    defer chr.allocator.free(query);
+
+    var state = try solvers.runSolver(solver.init(), query);
     defer state.deinit();
 
     std.log.info("Remaining constraints in the store:", .{});

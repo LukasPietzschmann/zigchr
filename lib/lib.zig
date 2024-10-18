@@ -5,6 +5,7 @@ pub const solvers = @import("solvers/solvers.zig");
 pub const types = @import("types.zig");
 pub const CHRState = @import("state.zig").CHRState;
 
+const Constraint = types.Constraint;
 const SHead = types.SHead;
 const Head = types.Head;
 const List = types.List;
@@ -31,4 +32,15 @@ pub fn emptyHead() !Head {
 
 pub fn deinit() void {
     _ = gpa.deinit();
+}
+
+pub fn argv_to_query() ![]Constraint {
+    var cs = List(Constraint).init(allocator);
+    var it = std.process.args();
+    _ = it.skip();
+    while (it.next()) |arg| {
+        const c = try std.fmt.parseInt(Constraint, arg, 10);
+        try cs.append(c);
+    }
+    return cs.toOwnedSlice();
 }
