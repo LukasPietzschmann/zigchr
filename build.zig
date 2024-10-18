@@ -1,6 +1,10 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const alloc = arena.allocator();
+    defer arena.deinit();
+
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -17,18 +21,29 @@ pub fn build(b: *std.Build) void {
     });
     lib_chr.addImport("utils", utils);
 
-    const exe = b.addExecutable(.{
-        .name = "zigchr",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+    const path_to_src = try std.fs.cwd().realpathAlloc(alloc, "src");
+    const src_dir = try std.fs.openDirAbsolute(path_to_src, .{
+        .iterate = true,
     });
-    exe.root_module.addImport("utils", utils);
-    exe.root_module.addImport("libchr", lib_chr);
 
-    b.installArtifact(exe);
+    var it = src_dir.iterate();
+    while (try it.next()) |file| {
+        const path = try std.fs.path.join(alloc, &[_][]const u8{ "src", file.name });
+        const name = std.fs.path.stem(file.name);
 
-    const run_cmd = b.addRunArtifact(exe);
-    const run_step = b.step("run", "Run zigchr");
-    run_step.dependOn(&run_cmd.step);
+        const exe = b.addExecutable(.{
+            .name = name,
+            .root_source_file = b.path(path),
+            .target = target,
+            .optimize = optimize,
+        });
+        exe.root_module.addImport("utils", utils);
+        exe.root_module.addImport("libchr", lib_chr);
+
+        b.installArtifact(exe);
+
+        const run_cmd = b.addRunArtifact(exe);
+        const run_step = b.step(name, "Run the example");
+        run_step.dependOn(&run_cmd.step);
+    }
 }
