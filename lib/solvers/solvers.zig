@@ -8,8 +8,14 @@ const Active = types.Active;
 const Constraint = types.Constraint;
 const String = types.String;
 
-pub const RuleSolver = @import("rule_solver.zig").RuleSolver;
+const rs = @import("rule_solver.zig");
+
+pub const RuleSolver = rs.RuleSolver;
 pub const CompositeSolver = @import("composite_solver.zig").CompositeSolver;
+
+pub const propagation = rs.propagation;
+pub const simplification = rs.simplification;
+pub const simpagation = rs.simpagation;
 
 pub const Solvable = struct {
     const Self = @This();

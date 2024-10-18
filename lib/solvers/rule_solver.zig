@@ -102,6 +102,36 @@ pub const RuleSolver = struct {
     }
 };
 
+pub inline fn propagation(name: String, head: Head, guard: Guard, body: Body) !RuleSolver {
+    return RuleSolver{
+        .name = name,
+        .kh = head,
+        .rh = try lib.emptyHead(),
+        .g = guard,
+        .b = body,
+    };
+}
+
+pub inline fn simplification(name: String, head: Head, guard: Guard, body: Body) !RuleSolver {
+    return RuleSolver{
+        .name = name,
+        .kh = try lib.emptyHead(),
+        .rh = head,
+        .g = guard,
+        .b = body,
+    };
+}
+
+pub inline fn simpagation(name: String, kh: Head, rh: Head, guard: Guard, body: Body) RuleSolver {
+    return RuleSolver{
+        .name = name,
+        .kh = kh,
+        .rh = rh,
+        .g = guard,
+        .b = body,
+    };
+}
+
 fn findMatchings(head: Head, active: Active, state: *CHRState) ![][]Active {
     const s = struct {
         const Self = @This();
