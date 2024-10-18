@@ -1,12 +1,13 @@
 const std = @import("std");
 const chr = @import("libchr");
+const config = @import("config");
 
 const solvers = chr.solvers;
 const predef = chr.predefined;
 const Constraint = chr.types.Constraint;
 
 pub const std_options = .{
-    .log_level = .debug,
+    .log_level = if (config.debug_logs) .debug else .info,
 };
 
 fn smaller(cs: []Constraint) bool {

@@ -5,6 +5,10 @@ pub fn build(b: *std.Build) !void {
     const alloc = arena.allocator();
     defer arena.deinit();
 
+    const show_debug_logs = b.option(bool, "log", "Show detailed execution logs") orelse false;
+    const options = b.addOptions();
+    options.addOption(bool, "debug_logs", show_debug_logs);
+
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -39,6 +43,7 @@ pub fn build(b: *std.Build) !void {
         });
         exe.root_module.addImport("utils", utils);
         exe.root_module.addImport("libchr", lib_chr);
+        exe.root_module.addOptions("config", options);
 
         b.installArtifact(exe);
 

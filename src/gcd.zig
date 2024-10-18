@@ -1,12 +1,13 @@
 const std = @import("std");
 const chr = @import("libchr");
+const config = @import("config");
 
 const solvers = chr.solvers;
 const predef = chr.predefined;
 const Constraint = chr.types.Constraint;
 
 pub const std_options = .{
-    .log_level = .debug,
+    .log_level = if (config.debug_logs) .debug else .info,
 };
 
 fn smaller(cs: []Constraint) bool {
@@ -31,7 +32,7 @@ pub fn main() !void {
     try compositeGen.own(solver.init());
     try compositeGen.own(solver2.init());
 
-    var elements = [_]Constraint{ 1, 99787 };
+    var elements = [_]Constraint{ 94017, 1155, 2035 };
     var state = try solvers.runSolver(compositeGen.init(), &elements);
     defer state.deinit();
     defer compositeGen.deinit();
