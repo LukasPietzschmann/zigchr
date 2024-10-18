@@ -6,11 +6,11 @@ const predef = chr.predefined;
 const Constraint = chr.types.Constraint;
 
 fn smaller(cs: []Constraint) bool {
-    return 0 < cs[0] and cs[0] <= cs[1];
+    return 0 < cs[0].value and cs[0].value <= cs[1].value;
 }
 
 fn sub(cs: []Constraint) []Constraint {
-    var x = [_]Constraint{cs[1] - cs[0]};
+    var x = [_]Constraint{Constraint{ .value = cs[1].value - cs[0].value, .tag = cs[0].tag }};
     return &x;
 }
 
@@ -27,7 +27,7 @@ pub fn main() !void {
     try compositeGen.own(solver.init());
     try compositeGen.own(solver2.init());
 
-    const query = try chr.argv_to_query();
+    const query = try chr.argv_to_query(null);
     defer chr.allocator.free(query);
 
     var state = try solvers.runSolver(compositeGen.init(), query);

@@ -16,7 +16,7 @@ pub fn gt(n: u32) fn (Constraint) bool {
         var x: u32 = n;
 
         pub fn do_it(c: Constraint) bool {
-            return c > n;
+            return c.value > n;
         }
     };
     return s.do_it;
@@ -30,7 +30,7 @@ pub fn leq(n: u32) fn (Constraint) bool {
         var x: u32 = n;
 
         pub fn do_it(c: Constraint) bool {
-            return c <= n;
+            return c.value <= n;
         }
     };
     return s.do_it;
@@ -44,7 +44,7 @@ pub fn eq(n: u32) fn (Constraint) bool {
         var x: u32 = n;
 
         pub fn do_it(c: Constraint) bool {
-            return c == n;
+            return c.value == n;
         }
     };
     return s.do_it;

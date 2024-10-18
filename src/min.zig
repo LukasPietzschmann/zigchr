@@ -6,7 +6,7 @@ const predef = chr.predefined;
 const Constraint = chr.types.Constraint;
 
 fn smaller(cs: []Constraint) bool {
-    return cs[0] <= cs[1];
+    return cs[0].value <= cs[1].value;
 }
 
 pub fn main() !void {
@@ -17,7 +17,7 @@ pub fn main() !void {
     var solver = solvers.simpagation("min", try predef.head.Wildcard(), try predef.head.Wildcard(), smaller, predef.body.top);
     defer solver.deinit();
 
-    const query = try chr.argv_to_query();
+    const query = try chr.argv_to_query(null);
     defer chr.allocator.free(query);
 
     var state = try solvers.runSolver(solver.init(), query);
