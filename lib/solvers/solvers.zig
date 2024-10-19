@@ -1,5 +1,7 @@
 const std = @import("std");
+
 const types = @import("../types.zig");
+const log = @import("../log.zig");
 const CHRState = @import("../state.zig").CHRState;
 
 const allocator = @import("../lib.zig").allocator;
@@ -81,5 +83,6 @@ pub fn runSolver(solver: Solvable, constraints: []Constraint) !CHRState {
             try state.add_to_store(current.id, current.constraint);
         }
     }
+    log.debug("Reached end of query", .{});
     return state;
 }
