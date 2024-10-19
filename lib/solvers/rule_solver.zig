@@ -60,6 +60,10 @@ pub const RuleSolver = struct {
                 try matchValues.append(m.constraint);
             }
 
+            if (match.len != complete_head.items.len) {
+                continue;
+            }
+
             if (!self.g(matchValues.items) or (self.rh.items.len == 0 and state.is_in_history(self.name, matchIds))) {
                 continue;
             }
