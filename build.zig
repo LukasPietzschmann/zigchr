@@ -6,10 +6,12 @@ pub fn build(b: *std.Build) !void {
     defer arena.deinit();
 
     const show_debug_logs = b.option(bool, "log", "Show detailed execution logs") orelse false;
+    const no_show_tag = b.option(bool, "notag", "When logging, don't show the tag of the constraint") orelse false;
     const show_matchings = b.option(bool, "matchings", "Show all possible matchings") orelse false;
     const show_store = b.option(bool, "store", "Show the constraint store after each alteration") orelse false;
     const options = b.addOptions();
     options.addOption(bool, "debug_logs", show_debug_logs);
+    options.addOption(bool, "no_show_tag", no_show_tag);
     options.addOption(bool, "show_matchings", show_matchings);
     options.addOption(bool, "show_store", show_store);
 

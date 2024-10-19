@@ -1,4 +1,5 @@
 const std = @import("std");
+const config = @import("config");
 
 pub const List = std.ArrayList;
 pub const ID = u32;
@@ -19,8 +20,11 @@ pub const Constraint = struct {
     pub fn format(self: Constraint, comptime fmt: String, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
-
-        try writer.print("{d}({d})", .{ self.tag, self.value });
+        if (config.no_show_tag) {
+            try writer.print("{d}", .{self.value});
+        } else {
+            try writer.print("{d}({d})", .{ self.tag, self.value });
+        }
     }
 };
 
