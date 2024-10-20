@@ -1,6 +1,6 @@
 # ZigCHR
 
-For the talk I gave at Zigtoberfest 2024, I coded up a CHR embedding for Zig using the
+For the [talk](https://github.com/LukasPietzschmann/zigtoberfest-talk) I gave at Zigtoberfest 2024, I coded up a CHR embedding for Zig using the
 FreeCHR framework.
 
 If you want to learn more about FreeCHR, go ahead and read [this
