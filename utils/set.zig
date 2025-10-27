@@ -1,29 +1,26 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub fn Set(comptime T: type) type {
     return struct {
-        backing: std.AutoHashMap(T, void),
+        backing: std.AutoHashMapUnmanaged(T, void) = .empty,
 
-        pub fn init(allocator: std.mem.Allocator) Set(T) {
-            return .{
-                .backing = std.AutoHashMap(T, void).init(allocator),
-            };
-        }
+        const Self = @This();
 
-        pub fn deinit(self: *Set(T)) void {
-            self.backing.deinit();
+        pub fn deinit(self: *Self, allocator: Allocator) void {
+            self.backing.deinit(allocator);
             self.* = undefined;
         }
 
-        pub fn size(self: Set(T)) usize {
+        pub fn size(self: Self) usize {
             return self.backing.count();
         }
 
-        pub fn has(self: Set(T), elem: T) bool {
+        pub fn has(self: Self, elem: T) bool {
             return self.backing.contains(elem);
         }
 
-        pub fn equals(self: Set(T), other: Set(T)) bool {
+        pub fn equals(self: Self, other: Self) bool {
             if (self.size() != other.size()) {
                 return false;
             }
@@ -36,15 +33,15 @@ pub fn Set(comptime T: type) type {
             return true;
         }
 
-        pub fn insert(self: *Set(T), elem: T) !void {
-            try self.backing.put(elem, void{});
+        pub fn insert(self: *Self, allocator: Allocator, elem: T) !void {
+            try self.backing.put(allocator, elem, {});
         }
 
-        pub fn remove(self: *Set(T), elem: T) bool {
+        pub fn remove(self: *Self, elem: T) bool {
             return self.backing.remove(elem);
         }
 
-        pub fn clearRetainingCapacity(self: *Set(T)) void {
+        pub fn clearRetainingCapacity(self: *Self) void {
             self.backing.clearRetainingCapacity();
         }
     };

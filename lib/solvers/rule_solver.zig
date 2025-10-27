@@ -21,22 +21,20 @@ const String = types.String;
 const allocator = lib.allocator;
 
 pub const RuleSolver = struct {
-    const Self = @This();
-
     name: String,
     kh: Head,
     rh: Head,
     g: Guard,
     b: Body,
 
-    pub fn solve(self: *Self, state: *CHRState, active: Active) !bool {
-        log.debug("Process {d}", .{active.constraint});
-        const complete_head = try lib.concat(self.kh, self.rh);
+    pub fn solve(self: *RuleSolver, state: *CHRState, active: Active) !bool {
+        log.debug("Process {f}", .{active.constraint});
+        var complete_head = try lib.concat(self.kh, self.rh);
         const all_matchings = try findMatchings(complete_head, active, state);
-        var fitting_matchings = List([]Active).init(allocator);
+        var fitting_matchings = List([]Active).empty;
         defer {
-            fitting_matchings.deinit();
-            complete_head.deinit();
+            fitting_matchings.deinit(allocator);
+            complete_head.deinit(allocator);
             for (all_matchings) |match| {
                 allocator.free(match);
             }
@@ -44,20 +42,20 @@ pub const RuleSolver = struct {
         }
 
         if (config.show_matchings) {
-            log.debug("Matchings: {any}", .{all_matchings});
+            log.debug("Matchings: {f}", .{Active.FmtSlices{ .slices = all_matchings }});
         }
 
         for (all_matchings) |match| {
-            var matchIds = utils.Set(ID).init(allocator);
-            var matchValues = List(Constraint).init(allocator);
+            var matchIds = utils.Set(ID){};
+            var matchValues = List(Constraint).empty;
             defer {
-                matchIds.deinit();
-                matchValues.deinit();
+                matchIds.deinit(allocator);
+                matchValues.deinit(allocator);
             }
 
             for (match) |m| {
-                try matchIds.insert(m.id);
-                try matchValues.append(m.constraint);
+                try matchIds.insert(allocator, m.id);
+                try matchValues.append(allocator, m.constraint);
             }
 
             if (match.len != complete_head.items.len) {
@@ -68,7 +66,7 @@ pub const RuleSolver = struct {
                 continue;
             }
 
-            try fitting_matchings.append(match);
+            try fitting_matchings.append(allocator, match);
         }
 
         if (fitting_matchings.items.len == 0) {
@@ -78,18 +76,18 @@ pub const RuleSolver = struct {
 
         const match = selectMatch(fitting_matchings.items);
 
-        log.debug("Fire rule {s} with {any}", .{ self.name, match });
+        log.debug("Fire rule {s} with {f}", .{ self.name, Active.FmtSlice{ .slice = match } });
 
-        var matchIds = utils.Set(ID).init(allocator);
-        var matchValues = List(Constraint).init(allocator);
+        var matchIds = utils.Set(ID){};
+        var matchValues = List(Constraint).empty;
         defer {
-            matchIds.deinit();
-            matchValues.deinit();
+            matchIds.deinit(allocator);
+            matchValues.deinit(allocator);
         }
 
         for (match) |m| {
-            try matchIds.insert(m.id);
-            try matchValues.append(m.constraint);
+            try matchIds.insert(allocator, m.id);
+            try matchValues.append(allocator, m.constraint);
         }
 
         for (match[self.kh.items.len..]) |rhMatch| {
@@ -108,25 +106,25 @@ pub const RuleSolver = struct {
         return true;
     }
 
-    pub fn init(self: *Self) Solvable {
-        return Solvable.init(self, self.name);
+    pub fn init(self: *RuleSolver) Solvable {
+        return .init(self, self.name);
     }
 
-    pub fn deinit(self: *Self) void {
-        self.kh.deinit();
-        self.rh.deinit();
+    pub fn deinit(self: *RuleSolver) void {
+        self.kh.deinit(allocator);
+        self.rh.deinit(allocator);
     }
 };
 
-pub inline fn propagation(name: String, head: Head, guard: Guard, body: Body) !RuleSolver {
-    return simpagation(name, head, try lib.emptyHead(), guard, body);
+pub fn propagation(name: String, head: Head, guard: Guard, body: Body) !RuleSolver {
+    return simpagation(name, head, .empty, guard, body);
 }
 
-pub inline fn simplification(name: String, head: Head, guard: Guard, body: Body) !RuleSolver {
-    return simpagation(name, try lib.emptyHead(), head, guard, body);
+pub fn simplification(name: String, head: Head, guard: Guard, body: Body) !RuleSolver {
+    return simpagation(name, .empty, head, guard, body);
 }
 
-pub inline fn simpagation(name: String, kh: Head, rh: Head, guard: Guard, body: Body) RuleSolver {
+pub fn simpagation(name: String, kh: Head, rh: Head, guard: Guard, body: Body) RuleSolver {
     return RuleSolver{
         .name = name,
         .kh = kh,
@@ -151,50 +149,57 @@ fn findMatchings(head: Head, active: Active, state: *CHRState) ![][]Active {
         matchings: List([]Active),
 
         pub fn init(h: Head, a: Active, s: *CHRState) Self {
-            return .{ .head = h, .active = a, .state = s, .acc = List(Active).init(allocator), .used = utils.Set(ID).init(allocator), .matchings = List([]Active).init(allocator) };
+            return .{
+                .head = h,
+                .active = a,
+                .state = s,
+                .acc = .empty,
+                .used = utils.Set(ID){},
+                .matchings = .empty,
+            };
         }
 
         pub fn deinit(self: *Self) void {
-            self.acc.deinit();
-            self.used.deinit();
-            self.matchings.deinit();
+            self.acc.deinit(allocator);
+            self.used.deinit(allocator);
+            self.matchings.deinit(allocator);
         }
 
         pub fn matching(self: *Self) ![][]Active {
             for (self.head.items, 0..) |head_constraint, i| {
-                if (head_constraint(self.active.constraint)) {
+                if (head_constraint.op(self.active.constraint, head_constraint.n)) {
                     self.acc.clearRetainingCapacity();
                     self.used.clearRetainingCapacity();
                     self.headIdx = i;
 
-                    try self.used.insert(self.active.id);
+                    try self.used.insert(allocator, self.active.id);
                     try self.search(0);
                 }
             }
-            return try self.matchings.toOwnedSlice();
+            return try self.matchings.toOwnedSlice(allocator);
         }
 
         // Search the constraint store for a fitting match for the i-th head constraint
         fn search(self: *Self, i: usize) !void {
             if (i >= self.head.items.len) { // All head constraints have been matched
-                try self.matchings.append(try self.acc.toOwnedSlice());
+                try self.matchings.append(allocator, try self.acc.toOwnedSlice(allocator));
                 return;
             }
 
             if (i == self.headIdx) { // The active constraint matched the constraint at head_idx
-                try self.acc.append(self.active);
-                try self.used.insert(self.active.id);
+                try self.acc.append(allocator, self.active);
+                try self.used.insert(allocator, self.active.id);
                 try self.search(i + 1);
             } else {
                 var it = self.state.store.keyIterator();
                 while (it.next()) |id| { // Search the store for a fitting constraint
                     if (self.used.has(id.*)) continue;
 
-                    const storeConstraint = self.state.store.get(id.*) orelse unreachable;
-                    if (self.head.items[i](storeConstraint)) {
+                    const storeConstraint = self.state.store.get(id.*).?;
+                    if (self.head.items[i].op(storeConstraint, self.head.items[i].n)) {
                         const new = Active{ .id = id.*, .constraint = storeConstraint };
-                        try self.acc.append(new);
-                        try self.used.insert(new.id);
+                        try self.acc.append(allocator, new);
+                        try self.used.insert(allocator, new.id);
                         try self.search(i + 1);
                     }
                 }
@@ -208,6 +213,6 @@ fn findMatchings(head: Head, active: Active, state: *CHRState) ![][]Active {
     return try my_s.matching();
 }
 
-inline fn selectMatch(matches: [][]Active) []Active {
+fn selectMatch(matches: [][]Active) []Active {
     return matches[0];
 }

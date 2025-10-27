@@ -20,32 +20,30 @@ pub const simplification = rs.simplification;
 pub const simpagation = rs.simpagation;
 
 pub const Solvable = struct {
-    const Self = @This();
-
     ptr: *anyopaque,
     solve_fn: *const fn (*anyopaque, state: *CHRState, active: Active) std.mem.Allocator.Error!bool,
     deinit_fn: *const fn (*anyopaque) void,
     name: String,
 
-    pub fn init(ptr: anytype, name: String) Self {
+    pub fn init(ptr: anytype, name: String) Solvable {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
-        if (ptr_info != .Pointer or ptr_info.Pointer.size != .One)
+        if (ptr_info != .pointer or ptr_info.pointer.size != .one)
             @compileError("Expected a pointer to a single value");
 
         const gen = struct {
             pub fn solveImpl(pointer: *anyopaque, state: *CHRState, active: Active) !bool {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return try @call(std.builtin.CallModifier.always_inline, ptr_info.Pointer.child.solve, .{ self, state, active });
+                return try self.solve(state, active);
             }
 
             pub fn deinitImpl(pointer: *anyopaque) void {
-                if (!std.meta.hasMethod(ptr_info.Pointer.child, "deinit")) {
+                if (!std.meta.hasMethod(ptr_info.pointer.child, "deinit")) {
                     return;
                 }
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(std.builtin.CallModifier.always_inline, ptr_info.Pointer.child.deinit, .{self});
+                self.deinit();
             }
         };
 
@@ -57,11 +55,11 @@ pub const Solvable = struct {
         };
     }
 
-    pub inline fn deinit(self: Self) void {
+    pub fn deinit(self: Solvable) void {
         self.deinit_fn(self.ptr);
     }
 
-    pub inline fn solve(self: Self, state: *CHRState, active: Active) !bool {
+    pub fn solve(self: Solvable, state: *CHRState, active: Active) !bool {
         return try self.solve_fn(self.ptr, state, active);
     }
 };
@@ -74,7 +72,7 @@ pub fn runSolver(solver: Solvable, constraints: []Constraint) !CHRState {
         try state.add_to_query(id, constraint);
     }
 
-    while (!state.query.empty()) {
+    while (state.query.items.len != 0) {
         const current = state.query.pop().?;
         while (state.is_alive(current.id) and try solver.solve(&state, current)) {
             continue;

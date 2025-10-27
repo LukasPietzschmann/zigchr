@@ -26,6 +26,6 @@ pub fn main() !void {
     chr.log.info("Remaining constraints in the store:", .{});
     var it = state.store.valueIterator();
     while (it.next()) |constraint| {
-        chr.log.info("{d}", .{constraint.*});
+        chr.log.info("{f}", .{constraint.*});
     }
 }

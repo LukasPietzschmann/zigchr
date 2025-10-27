@@ -11,11 +11,9 @@ const List = types.List;
 const Active = types.Active;
 
 pub const CompositeSolver = struct {
-    const Self = @This();
+    solvers: List(Solvable) = .empty,
 
-    solvers: List(Solvable) = List(Solvable).init(allocator),
-
-    pub fn solve(self: *Self, state: *CHRState, active: Active) !bool {
+    pub fn solve(self: *CompositeSolver, state: *CHRState, active: Active) !bool {
         for (self.solvers.items) |solver| {
             log.debug("Trying rule {s}", .{solver.name});
             if (try solver.solve(state, active)) {
@@ -25,18 +23,18 @@ pub const CompositeSolver = struct {
         return false;
     }
 
-    pub fn init(self: *Self) Solvable {
+    pub fn init(self: *CompositeSolver) Solvable {
         return Solvable.init(self, "Composite");
     }
 
-    pub fn deinit(self: *Self) void {
+    pub fn deinit(self: *CompositeSolver) void {
         for (self.solvers.items) |solver| {
             solver.deinit();
         }
-        self.solvers.deinit();
+        self.solvers.deinit(allocator);
     }
 
-    pub fn own(self: *Self, solver: Solvable) !void {
-        try self.solvers.append(solver);
+    pub fn own(self: *CompositeSolver, solver: Solvable) !void {
+        try self.solvers.append(allocator, solver);
     }
 };

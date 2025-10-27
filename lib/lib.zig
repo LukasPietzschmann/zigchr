@@ -17,20 +17,16 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 pub const allocator = gpa.allocator();
 
 pub fn as_head(f: SHead) !List(SHead) {
-    var list = List(SHead).init(allocator);
-    try list.append(f);
+    var list = List(SHead).empty;
+    try list.append(allocator, f);
     return list;
 }
 
 pub fn concat(h1: Head, h2: Head) !Head {
-    var res = Head.init(allocator);
-    try res.appendSlice(h1.items);
-    try res.appendSlice(h2.items);
+    var res = Head.empty;
+    try res.appendSlice(allocator, h1.items);
+    try res.appendSlice(allocator, h2.items);
     return res;
-}
-
-pub fn emptyHead() !Head {
-    return Head.init(allocator);
 }
 
 pub fn deinit() void {
@@ -38,12 +34,12 @@ pub fn deinit() void {
 }
 
 pub fn argv_to_query(tag: ?Tag) ![]Constraint {
-    var cs = List(Constraint).init(allocator);
+    var cs = List(Constraint).empty;
     var it = std.process.args();
     _ = it.skip();
     while (it.next()) |arg| {
         const c = try std.fmt.parseInt(Value, arg, 10);
-        try cs.append(Constraint{ .tag = tag orelse Constraint.default_tag, .value = c });
+        try cs.append(allocator, .{ .tag = tag orelse Constraint.default_tag, .value = c });
     }
-    return cs.toOwnedSlice();
+    return cs.toOwnedSlice(allocator);
 }

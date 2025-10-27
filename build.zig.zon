@@ -1,8 +1,9 @@
 .{
-    .name = "zigchr",
+    .name = .zigchr,
     .version = "0.1.0",
-    .minimum_zig_version = "0.13.0",
+    .minimum_zig_version = "0.15.0",
     .dependencies = .{},
+    .fingerprint = 0x7016d1449f9a28c8,
     .paths = .{
         "build.zig",
         "build.zig.zon",
