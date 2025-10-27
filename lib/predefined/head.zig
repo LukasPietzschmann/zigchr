@@ -33,7 +33,7 @@ pub fn LEQ(n: u32) !Head {
 }
 
 fn _eq(c: Constraint, n: u32) bool {
-    return c.value > n;
+    return c.value == n;
 }
 pub fn eq(n: u32) SHead {
     return .{ .n = n, .op = _eq };
