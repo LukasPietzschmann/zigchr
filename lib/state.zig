@@ -14,23 +14,23 @@ const String = types.String;
 
 pub const CHRState = struct {
     next_id: ID = 0,
-    store: std.AutoHashMap(ID, Constraint) = std.AutoHashMap(ID, Constraint).init(allocator),
-    alive: utils.Set(ID) = utils.Set(ID).init(allocator),
-    history: std.StringHashMap(List(utils.Set(ID))) = std.StringHashMap(List(utils.Set(ID))).init(allocator),
-    query: utils.Queue(Active) = utils.Queue(Active).init(allocator),
+    store: std.AutoHashMapUnmanaged(ID, Constraint) = .{},
+    alive: utils.Set(ID) = utils.Set(ID){},
+    history: std.StringHashMapUnmanaged(List(utils.Set(ID))) = .{},
+    query: List(Active) = .empty,
 
     pub fn deinit(self: *CHRState) void {
-        self.store.deinit();
-        self.alive.deinit();
-        self.history.deinit();
-        self.query.deinit();
+        self.store.deinit(allocator);
+        self.alive.deinit(allocator);
+        self.history.deinit(allocator);
+        self.query.deinit(allocator);
     }
 
     fn print_store(self: CHRState) void {
         log.debug("========== Store ==========", .{});
         var it = self.store.valueIterator();
         while (it.next()) |constraint| {
-            log.debug("{d}", .{constraint.*});
+            log.debug("{f}", .{constraint.*});
         }
         log.debug("===========================", .{});
     }
@@ -41,7 +41,7 @@ pub const CHRState = struct {
 
     pub fn kill(self: *CHRState, id: ID) void {
         if (self.store.get(id)) |existing| {
-            log.debug("Removing {d} from store", .{existing});
+            log.debug("Removing {f} from store", .{existing});
             _ = self.store.remove(id);
             if (config.show_store)
                 self.print_store();
@@ -54,24 +54,24 @@ pub const CHRState = struct {
     }
 
     pub fn add_to_query(self: *CHRState, id: ID, constraint: Constraint) !void {
-        log.debug("Adding {d} to query", .{constraint});
-        try self.query.push(Active{ .id = id, .constraint = constraint });
+        log.debug("Adding {f} to query", .{constraint});
+        try self.query.append(allocator, .{ .id = id, .constraint = constraint });
     }
 
     pub fn add_to_store(self: *CHRState, id: ID, constraint: Constraint) !void {
-        log.debug("Adding {d} to store", .{constraint});
-        try self.store.put(id, constraint);
+        log.debug("Adding {f} to store", .{constraint});
+        try self.store.put(allocator, id, constraint);
         if (config.show_store)
             self.print_store();
     }
 
     pub fn add_to_history(self: *CHRState, rule: String, ids: utils.Set(ID)) !void {
         if (self.history.getPtr(rule)) |existing| {
-            try existing.append(ids);
+            try existing.append(allocator, ids);
         } else {
-            var set = List(utils.Set(ID)).init(allocator);
-            try set.append(ids);
-            try self.history.put(rule, set);
+            var set = List(utils.Set(ID)){};
+            try set.append(allocator, ids);
+            try self.history.put(allocator, rule, set);
         }
     }
 
@@ -88,7 +88,7 @@ pub const CHRState = struct {
 
     pub fn new_id(self: *CHRState) !ID {
         const id = self.next_id;
-        try self.alive.insert(id);
+        try self.alive.insert(allocator, id);
         self.next_id += 1;
         return id;
     }

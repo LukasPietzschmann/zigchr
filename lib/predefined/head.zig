@@ -3,52 +3,41 @@ const types = @import("../types.zig");
 
 const Constraint = types.Constraint;
 const Head = types.Head;
+const SHead = types.SHead;
 
-pub fn wildcard(_: Constraint) bool {
+fn wildcard(_: Constraint, _: u32) bool {
     return true;
 }
-pub inline fn Wildcard() !Head {
-    return try lib.as_head(wildcard);
+pub fn Wildcard() !Head {
+    return try lib.as_head(.{ .n = undefined, .op = wildcard });
 }
 
-pub fn gt(n: u32) fn (Constraint) bool {
-    const s = struct {
-        var x: u32 = n;
-
-        pub fn do_it(c: Constraint) bool {
-            return c.value > n;
-        }
-    };
-    return s.do_it;
+fn _gt(c: Constraint, n: u32) bool {
+    return c.value > n;
 }
-pub inline fn GT(n: u32) !Head {
+pub fn gt(n: u32) SHead {
+    return .{ .n = n, .op = _gt };
+}
+pub fn GT(n: u32) !Head {
     return try lib.as_head(gt(n));
 }
 
-pub fn leq(n: u32) fn (Constraint) bool {
-    const s = struct {
-        var x: u32 = n;
-
-        pub fn do_it(c: Constraint) bool {
-            return c.value <= n;
-        }
-    };
-    return s.do_it;
+fn _leq(c: Constraint, n: u32) bool {
+    return c.value <= n;
 }
-pub inline fn LEQ(n: u32) !Head {
+pub fn leq(n: u32) SHead {
+    return .{ .n = n, .op = _leq };
+}
+pub fn LEQ(n: u32) !Head {
     return try lib.as_head(leq(n));
 }
 
-pub fn eq(n: u32) fn (Constraint) bool {
-    const s = struct {
-        var x: u32 = n;
-
-        pub fn do_it(c: Constraint) bool {
-            return c.value == n;
-        }
-    };
-    return s.do_it;
+fn _eq(c: Constraint, n: u32) bool {
+    return c.value > n;
 }
-pub inline fn EQ(n: u32) !Head {
+pub fn eq(n: u32) SHead {
+    return .{ .n = n, .op = _eq };
+}
+pub fn EQ(n: u32) !Head {
     return try lib.as_head(eq(n));
 }
