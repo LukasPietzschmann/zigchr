@@ -1,5 +1,10 @@
 # ZigCHR
 
+> [!IMPORTANT]  
+> Moved to Codeberg: https://codeberg.org/LukasPietzschmann/zigchr
+
+---
+
 For the [talk](https://github.com/LukasPietzschmann/zigtoberfest-talk) I gave at Zigtoberfest 2024, I coded up a CHR embedding for Zig using the
 FreeCHR framework.
 
